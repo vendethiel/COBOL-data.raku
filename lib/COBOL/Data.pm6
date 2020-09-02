@@ -15,10 +15,43 @@ my grammar P {
 
 }
 
+my $CNT;
 my class Decl {
   has $.lvl;
   has $.name;
   has Decl @.children;
+
+  has $!KLASS;
+  method klass() {
+    return $!KLASS with $!KLASS;
+    my $self = self;
+
+    my $class = Metamodel::ClassHOW.new_type(name => $!name ~ "#" ~ $CNT++);
+    my %child-types;
+    $class.^add_method("LEVEL", method () { $self.lvl });
+    $class.^add_method("receive", method (%data) {
+      my %new;
+      for $self.children {
+        die "Attribute " ~ .name ~ " of " ~ $self.name ~ " is not present." unless %data{.name}:exists;
+        %new{.name} = %child-types{.name}.receive(%data{.name}:delete);
+      }
+      die "Extraneous attributes: $(%data.keys) for " ~ $self.name if %data;
+      $class.new(|%new);
+    });
+    for @!children {
+      # TODO infer sigil n stuff
+      $class.^add_attribute(Attribute.new(
+        :name('$.' ~ .name),
+        :type(%child-types{.name} = .klass),
+        :has_accessor(1),
+        :package($class),
+        :required,
+      ));
+    }
+    $class.^compose;
+    $!KLASS = $class;
+    return $!KLASS
+  }
 }
 
 my class A {
@@ -43,7 +76,7 @@ sub nest(@decls) {
     cur.children.push: $_;
     @stack.push: $_;
   }
-  @stack[0].children
+  @stack[0]
 }
 
 sub parse(Str $data) is export {

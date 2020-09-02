@@ -27,7 +27,7 @@ my class Decl {
     my $self = self;
 
     my $class = Metamodel::ClassHOW.new_type(name => $!name ~ "#" ~ $CNT++);
-    my %child-types;
+    my %child-types; # .klass is supposed to be cached, but for some reason it doesnt work
     $class.^add_method("LEVEL", method () { $self.lvl });
     $class.^add_method("receive", method (%data) {
       my %new;
